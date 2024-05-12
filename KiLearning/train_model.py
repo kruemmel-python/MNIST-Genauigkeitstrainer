@@ -3,24 +3,11 @@ import os
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-
-# Benutzerdefinierter Callback, um das Training bei einer Genauigkeit von 0.99 zu stoppen
-class MyCallback(tf.keras.callbacks.Callback):
-    def on_epoch_end(self, epoch, logs=None):
-        if logs is None:
-            logs = {}
-        accuracy = logs.get('accuracy')
-        if accuracy is not None:
-            if accuracy >= 0.99:
-                print(f"\nGenauigkeit hat {accuracy:.4f} erreicht, breche das Training ab!")
-                self.model.stop_training = True
-
-my_callback = MyCallback()
 
 # Laden des MNIST-Datensatzes, der in Trainings- und Testdaten aufgeteilt ist
 (train_images, train_labels), (test_images, test_labels) = mnist.load_data()
@@ -57,10 +44,13 @@ else:
     # Erstellen eines neuen Modells, wenn keines existiert
     model = Sequential([
         Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+        BatchNormalization(),
         MaxPooling2D((2, 2)),
         Conv2D(64, (3, 3), activation='relu'),
+        BatchNormalization(),
         MaxPooling2D((2, 2)),
         Conv2D(128, (3, 3), activation='relu'),
+        BatchNormalization(),
         Flatten(),
         Dense(128, activation='relu'),
         Dropout(0.5),
@@ -73,21 +63,35 @@ model.compile(optimizer='adam',
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
-# Callback für das Speichern des besten Modells
+# Callback für das Speichern des besten Modells und EarlyStopping
 checkpoint = ModelCheckpoint(model_path, save_best_only=True)
+early_stopping = EarlyStopping(
+    monitor='val_accuracy',
+    patience=10,
+    verbose=1,
+    mode='max',
+    restore_best_weights=True
+)
+
+# Lernratenplaner
+def scheduler(epoch, lr):
+    if epoch < 10:
+        return lr
+    else:
+        return float(lr * tf.math.exp(-0.1))
+
+lr_scheduler = LearningRateScheduler(scheduler)
 
 # Trainieren des Modells mit den Trainingsdaten und Data Augmentation
 history = model.fit(datagen.flow(train_images, train_labels, batch_size=32),
-                    epochs=250,  # Setze eine hohe Epochenzahl
+                    epochs=50,  # Reduzierte Epochenzahl
                     validation_data=(test_images, test_labels),
-                    callbacks=[checkpoint, my_callback])  # Benutzerdefinierter Callback
+                    callbacks=[checkpoint, early_stopping, lr_scheduler])  # Verbesserte Callbacks
+
 
 # Evaluieren des Modells mit den Testdaten
 test_loss, test_acc = model.evaluate(test_images, test_labels)
-if test_acc >= 0.99:
-    print(f"Testgenauigkeit: {test_acc:.4f}")
-else:
-    print("Testgenauigkeit hat 0.99 noch nicht erreicht.")
+print(f"Testgenauigkeit: {test_acc:.4f}")
 
 # Plotten der Trainings- und Validierungsgenauigkeit sowie der Verluste
 plt.figure(figsize=(12, 4))
