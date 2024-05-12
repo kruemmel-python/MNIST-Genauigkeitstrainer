@@ -27,6 +27,8 @@
   <ItemGroup>
     <Content Include="mein_ki_modell.keras" />
     <Content Include="predict_and_display.py" />
+    <Content Include="Readme.md" />
+    <Content Include="requirements.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

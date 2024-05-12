@@ -1,0 +1,5 @@
+tensorflow==2.x
+matplotlib
+h5py
+tk
+numpy
